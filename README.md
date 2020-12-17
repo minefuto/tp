@@ -5,7 +5,9 @@ This is a tool that interactively previews the command's stdin/stdout.
 
 ## Installation
 ```
-$ go get github.com/minefuto/tp 
+$ git clone https://github.com/minefuto/tp.git
+$ cd tp
+$ go install
 ```
 
 ## Usage
