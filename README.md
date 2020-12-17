@@ -1,4 +1,5 @@
 # tp - Transparent Pipeline
+![GitHub](https://img.shields.io/github/license/minefuto/tp?style=for-the-badge)
 
 This is a tool that interactively previews the command's stdin/stdout.
 
@@ -8,13 +9,13 @@ $ go get github.com/minefuto/tp
 ```
 
 ## Usage
-## 1. stdin/stdout mode  
-<img src="https://github.com/minefuto/qwertycd/blob/master/gif/mode1.gif">
+### 1. stdin/stdout mode  
+<img src="https://github.com/minefuto/tp/blob/main/gif/mode1.gif">
 
-## 2. commandline mode  
-<img src="https://github.com/minefuto/qwertycd/blob/master/gif/mode2.gif">
+### 2. commandline mode  
+<img src="https://github.com/minefuto/tp/blob/main/gif/mode2.gif">
 
-Add the following to shell's config file.
+Add the following to shell's config file.  
 **Zsh(`.zshrc`)**
 ```
 function transparent-pipeline() {
