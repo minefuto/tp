@@ -166,6 +166,7 @@ func (t *tui) setAction() {
 					t.cliPane.disableHandler(func() {
 						t.cliPane.addPrompt()
 						t.stdoutPane.Clear()
+						t.stdinPane.SetText("Now Loading...")
 						t.stdoutPane.syncUpdate(func() {
 							t.stdinPane.setData(t.stdoutPane.data)
 						})
