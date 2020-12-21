@@ -27,12 +27,13 @@ const (
 )
 
 var (
-	shell       string
-	initCommand string
-	commandFlag bool
-	helpFlag    bool
-	versionFlag bool
-	stdinBytes  = []byte("")
+	shell          string
+	initCommand    string
+	commandFlag    bool
+	helpFlag       bool
+	horizontalFlag bool
+	versionFlag    bool
+	stdinBytes     = []byte("")
 )
 
 type tui struct {
@@ -47,15 +48,22 @@ func newTui() *tui {
 	stdinPane := newViewPane("stdin")
 	stdoutPane := newViewPane("stdout")
 
-	viewPanes := tview.NewFlex()
-	viewPanes.SetDirection(tview.FlexColumn).
-		AddItem(stdinPane, 0, 1, false).
-		AddItem(stdoutPane, 0, 1, false)
-
 	flex := tview.NewFlex()
-	flex.SetDirection(tview.FlexRow).
-		AddItem(cliPane, 1, 1, false).
-		AddItem(viewPanes, 0, 1, false)
+	if horizontalFlag {
+		flex.SetDirection(tview.FlexRow).
+			AddItem(cliPane, 1, 1, false).
+			AddItem(stdinPane, 0, 1, false).
+			AddItem(stdoutPane, 0, 1, false)
+	} else {
+		viewPanes := tview.NewFlex()
+		viewPanes.SetDirection(tview.FlexColumn).
+			AddItem(stdinPane, 0, 1, false).
+			AddItem(stdoutPane, 0, 1, false)
+
+		flex.SetDirection(tview.FlexRow).
+			AddItem(cliPane, 1, 1, false).
+			AddItem(viewPanes, 0, 1, false)
+	}
 
 	t := &tui{
 		Application: tview.NewApplication(),
@@ -370,6 +378,7 @@ func main() {
 	runewidth.DefaultCondition.EastAsianWidth = false
 
 	flag.BoolVarP(&helpFlag, "help", "h", false, "Show help")
+	flag.BoolVar(&horizontalFlag, "horizontal", false, "Split the view horizontally")
 	flag.BoolVarP(&versionFlag, "version", "v", false, "Show version")
 	flag.BoolVarP(&commandFlag, "command", "c", false, "Return commandline text")
 	flag.StringVarP(&shell, "shell", "s", os.Getenv("SHELL"), "Specify the shell to use")
