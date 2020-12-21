@@ -3,10 +3,10 @@ package main
 import (
 	"bytes"
 	"context"
-	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"os/exec"
 	"strings"
@@ -16,6 +16,7 @@ import (
 	"github.com/mattn/go-isatty"
 	"github.com/mattn/go-runewidth"
 	"github.com/rivo/tview"
+	flag "github.com/spf13/pflag"
 	"golang.org/x/crypto/ssh/terminal"
 	"golang.org/x/text/transform"
 )
@@ -26,10 +27,11 @@ const (
 )
 
 var (
-	shell       = "sh"
-	initCommand = ""
-	commandFlag = false
-	showVersion = false
+	shell       string
+	initCommand string
+	commandFlag bool
+	helpFlag    bool
+	versionFlag bool
 	stdinBytes  = []byte("")
 )
 
@@ -367,14 +369,25 @@ func (tt *textLineTransformer) Transform(dst, src []byte, atEOF bool) (nDst, nSr
 func main() {
 	runewidth.DefaultCondition.EastAsianWidth = false
 
-	flag.BoolVar(&showVersion, "v", false, "Display version")
-	flag.BoolVar(&commandFlag, "c", false, "Return commandline text")
-	flag.StringVar(&shell, "s", "sh", "Specify the shell to use")
+	flag.BoolVarP(&helpFlag, "help", "h", false, "Show help")
+	flag.BoolVarP(&versionFlag, "version", "v", false, "Show version")
+	flag.BoolVarP(&commandFlag, "command", "c", false, "Return commandline text")
+	flag.StringVarP(&shell, "shell", "s", os.Getenv("SHELL"), "Specify the shell to use")
 	flag.Parse()
 
-	if showVersion {
+	if helpFlag {
+		fmt.Println("Usage of tp:")
+		flag.PrintDefaults()
+		os.Exit(0)
+	}
+
+	if versionFlag {
 		fmt.Printf("%s version %s\n", name, version)
 		os.Exit(0)
+	}
+
+	if shell == "" {
+		log.Fatalln("Error: Shell is not found, please specify the shell by \"-s\" option")
 	}
 
 	initCommand = flag.Arg(0)
