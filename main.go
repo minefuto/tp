@@ -6,17 +6,16 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"os"
 	"os/exec"
 	"strings"
 	"sync"
 
+	flag "github.com/cornfeedhobo/pflag"
 	"github.com/gdamore/tcell/v2"
 	"github.com/mattn/go-isatty"
 	"github.com/mattn/go-runewidth"
 	"github.com/rivo/tview"
-	flag "github.com/spf13/pflag"
 	"golang.org/x/crypto/ssh/terminal"
 	"golang.org/x/text/transform"
 )
@@ -33,7 +32,7 @@ var (
 	helpFlag       bool
 	horizontalFlag bool
 	versionFlag    bool
-	stdinBytes     = []byte("")
+	stdinBytes     []byte
 )
 
 type tui struct {
@@ -386,7 +385,7 @@ func main() {
 	flag.Parse()
 
 	if helpFlag {
-		fmt.Println("Usage of tp:")
+		fmt.Fprintln(os.Stderr, "Usage of tp:")
 		flag.PrintDefaults()
 		os.Exit(0)
 	}
@@ -396,8 +395,15 @@ func main() {
 		os.Exit(0)
 	}
 
-	if shell == "" {
-		log.Fatalln("Error: Shell is not found, please specify the shell by \"-s\" option")
+	if os.Getenv("SHELL") == "" {
+		fmt.Fprint(os.Stderr, "$SHELL not found, please specify the shell by '-s' option")
+		os.Exit(1)
+	}
+
+	_, err := exec.LookPath(shell)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "executable file not found: '%s'", shell)
+		os.Exit(1)
 	}
 
 	initCommand = flag.Arg(0)
