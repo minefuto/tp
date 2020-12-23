@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"strings"
 	"testing"
@@ -24,10 +25,14 @@ func TestSetPrompt(t *testing.T) {
 	for _, tc := range cases {
 		c.setPrompt(tc.input)
 		if !(c.prompt == tc.prompt) {
-			t.Error("\nprompt:\n", c.prompt, "\nexpected:\n", tc.prompt, "\n")
+			r := strings.Replace(fmt.Sprintf(`result:   "%s"`, c.prompt), "\n", "\\n", -1)
+			e := strings.Replace(fmt.Sprintf(`expected: "%s"`, tc.prompt), "\n", "\\n", -1)
+			t.Errorf("\n%s\n%s", r, e)
 		}
 		if !(c.GetText() == tc.text) {
-			t.Error("\ntext:\n", c.GetText(), "\nexpected:\n", tc.text, "\n")
+			r := strings.Replace(fmt.Sprintf(`result:   "%s"`, c.GetText()), "\n", "\\n", -1)
+			e := strings.Replace(fmt.Sprintf(`expected: "%s"`, tc.text), "\n", "\\n", -1)
+			t.Errorf("\n%s\n%s", r, e)
 		}
 	}
 }
@@ -47,41 +52,69 @@ func TestAddPrompt(t *testing.T) {
 		c.SetText(tc.text)
 		c.addPrompt()
 		if !(c.prompt == tc.result) {
-			t.Error("\nprompt:\n", c.prompt, "\nexpected:\n", tc.result, "\n")
+			r := strings.Replace(fmt.Sprintf(`result:   "%s"`, c.prompt), "\n", "\\n", -1)
+			e := strings.Replace(fmt.Sprintf(`expected: "%s"`, tc.result), "\n", "\\n", -1)
+			t.Errorf("\n%s\n%s", r, e)
 		}
 	}
 }
 
 func TestSetData(t *testing.T) {
+	getTerminalHeight = func() int {
+		return 6
+	}
+
 	cases := []struct {
-		input  string
-		result string
+		input   string
+		result  string
+		result2 string
 	}{
-		{input: "a", result: "a"},
+		{input: "a\n", result: "a\n", result2: "a\n"},
+		{input: "a\na\na\na\na", result: "a\na\na\na\na", result2: "a\na\na"},
 	}
 	v := newViewPane("")
 	for _, tc := range cases {
 		v.setData([]byte(tc.input))
 		if !(bytes.Equal(v.data, []byte(tc.result))) {
-			t.Error("")
+			r := strings.Replace(fmt.Sprintf(`result:   "%s"`, string(v.data)), "\n", "\\n", -1)
+			e := strings.Replace(fmt.Sprintf(`expected: "%s"`, tc.result), "\n", "\\n", -1)
+			t.Errorf("\n%s\n%s", r, e)
+		}
+		if !(v.GetText(true) == tc.result2) {
+			r := strings.Replace(fmt.Sprintf(`result:   "%s"`, v.GetText(true)), "\n", "\\n", -1)
+			e := strings.Replace(fmt.Sprintf(`expected: "%s"`, tc.result2), "\n", "\\n", -1)
+			t.Errorf("\n%s\n%s", r, e)
 		}
 	}
 }
 
 func TestExecCommand(t *testing.T) {
+	shell = "sh"
+	getTerminalHeight = func() int {
+		return 6
+	}
+
 	cases := []struct {
-		cmd    string
-		input  string
-		result string
+		cmd     string
+		stdin   string
+		result  string
+		result2 string
 	}{
-		{cmd: "echo a", input: "", result: "a\n"},
-		{cmd: "grep a", input: "a\nb", result: "a\n"},
+		{cmd: "echo a", stdin: "", result: "a\n", result2: "a\n"},
+		{cmd: "grep a", stdin: "a\nb\na\na\n", result: "a\na\na\n", result2: "a\na\na"},
 	}
 	v := newViewPane("test")
 	for _, tc := range cases {
-		v.execCommand(tc.cmd, []byte(tc.input))
+		v.execCommand(tc.cmd, []byte(tc.stdin))
 		if !(bytes.Equal(v.data, []byte(tc.result))) {
-			t.Error("")
+			r := strings.Replace(fmt.Sprintf(`result:   "%s"`, string(v.data)), "\n", "\\n", -1)
+			e := strings.Replace(fmt.Sprintf(`expected: "%s"`, tc.result), "\n", "\\n", -1)
+			t.Errorf("\n%s\n%s", r, e)
+		}
+		if !(v.GetText(true) == tc.result2) {
+			r := strings.Replace(fmt.Sprintf(`result:   "%s"`, v.GetText(true)), "\n", "\\n", -1)
+			e := strings.Replace(fmt.Sprintf(`expected: "%s"`, tc.result2), "\n", "\\n", -1)
+			t.Errorf("\n%s\n%s", r, e)
 		}
 	}
 }
@@ -149,7 +182,9 @@ func TestTransform(t *testing.T) {
 		io.Copy(w, stdin)
 
 		if stdout.String() != tc.result {
-			t.Error("expected: ", tc.result, ", value: ", stdout.String())
+			r := strings.Replace(fmt.Sprintf(`result:   "%s"`, stdout.String()), "\n", "\\n", -1)
+			e := strings.Replace(fmt.Sprintf(`expected: "%s"`, tc.result), "\n", "\\n", -1)
+			t.Errorf("\n%s\n%s", r, e)
 		}
 	}
 }

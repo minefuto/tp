@@ -35,6 +35,11 @@ var (
 	stdinBytes     []byte
 )
 
+var getTerminalHeight = func() int {
+	_, height, _ := terminal.GetSize(int(os.Stderr.Fd()))
+	return height
+}
+
 type tui struct {
 	*tview.Application
 	cliPane    *cliPane
@@ -322,10 +327,9 @@ type textLineTransformer struct {
 }
 
 func newTextLineTransformer() *textLineTransformer {
-	_, height, _ := terminal.GetSize(int(os.Stderr.Fd()))
 	tt := &textLineTransformer{
 		line:  0,
-		limit: height - 3,
+		limit: getTerminalHeight() - 3,
 		temp:  []byte(""),
 	}
 	return tt
