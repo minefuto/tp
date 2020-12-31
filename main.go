@@ -43,14 +43,14 @@ var getTerminalHeight = func() int {
 type tui struct {
 	*tview.Application
 	cliPane    *cliPane
-	stdinPane  *viewPane
-	stdoutPane *viewPane
+	stdinPane  *stdinViewPane
+	stdoutPane *stdoutViewPane
 }
 
 func newTui() *tui {
 	cliPane := newCliPane()
-	stdinPane := newViewPane("stdin")
-	stdoutPane := newViewPane("stdout")
+	stdinPane := newStdinViewPane()
+	stdoutPane := newStdoutViewPane()
 
 	flex := tview.NewFlex()
 	if horizontalFlag {
@@ -82,13 +82,21 @@ func newTui() *tui {
 func (t *tui) start() int {
 	t.setAction()
 
+	t.stdinPane.reset()
+	t.stdoutPane.reset()
+
+	p := t.cliPane.prompt
 	go func() {
-		if t.cliPane.prompt == "" {
+		if p == "" {
 			t.stdinPane.setData(stdinBytes)
 		} else {
-			t.stdinPane.execCommand(t.cliPane.prompt, stdinBytes)
+			t.stdinPane.execCommand(p, stdinBytes)
 		}
-		t.stdoutPane.execCommand(t.cliPane.GetText(), t.stdinPane.data)
+		var text string
+		t.QueueUpdate(func() {
+			text = t.cliPane.GetText()
+		})
+		t.stdoutPane.execCommand(text, t.stdinPane.data)
 	}()
 
 	if err := t.Run(); err != nil {
@@ -100,14 +108,15 @@ func (t *tui) start() int {
 
 func (t *tui) setAction() {
 	t.cliPane.SetChangedFunc(func(text string) {
-		if !t.cliPane.skip && !t.cliPane.disable {
-			go func() {
-				t.stdoutPane.execCommand(t.cliPane.GetText(), t.stdinPane.data)
-			}()
-		}
 		if t.cliPane.skip {
 			t.cliPane.skip = false
+			return
 		}
+		t.stdoutPane.reset()
+
+		go func() {
+			t.stdoutPane.execCommand(text, t.stdinPane.data)
+		}()
 	})
 
 	t.stdinPane.SetChangedFunc(func() {
@@ -118,7 +127,7 @@ func (t *tui) setAction() {
 		t.Draw()
 	})
 
-	t.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+	t.cliPane.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlC:
 			if commandFlag {
@@ -128,14 +137,19 @@ func (t *tui) setAction() {
 			return event
 
 		case tcell.KeyEnter:
+			t.stdinPane.cancel()
+			t.stdoutPane.cancel()
 			t.Stop()
 			if commandFlag {
 				fmt.Println(adjustPipe(t.cliPane.prompt) + t.cliPane.GetText())
 				return nil
 			}
-			t.stdoutPane.syncUpdate(func() {
-				fmt.Print(string(t.stdoutPane.data))
-			})
+
+			cmd := exec.Command(shell, "-c", adjustPipe(t.cliPane.prompt)+t.cliPane.GetText())
+			cmd.Stdin = bytes.NewReader(stdinBytes)
+			cmd.Stdout = os.Stdout
+			cmd.Run()
+
 			return nil
 
 		case tcell.KeyBackspace, tcell.KeyBackspace2:
@@ -143,20 +157,17 @@ func (t *tui) setAction() {
 				if t.cliPane.prompt == "" {
 					return event
 				}
+				t.cliPane.setPrompt(t.cliPane.prompt)
+
+				t.stdinPane.reset()
+				t.stdoutPane.reset()
+
+				p := t.cliPane.prompt
 				go func() {
-					t.stdoutPane.ctx, t.stdoutPane.cancel = nil, nil
-
-					t.cliPane.disableHandler(func() {
-						t.cliPane.setPrompt(t.cliPane.prompt)
-					})
-					t.stdinPane.syncUpdate(func() {
-						t.stdoutPane.setData(t.stdinPane.data)
-					})
-
-					if t.cliPane.prompt == "" {
+					if p == "" {
 						t.stdinPane.setData(stdinBytes)
 					} else {
-						t.stdinPane.execCommand(t.cliPane.prompt, stdinBytes)
+						t.stdinPane.execCommand(p, stdinBytes)
 					}
 				}()
 				return nil
@@ -166,16 +177,23 @@ func (t *tui) setAction() {
 		case tcell.KeyRune:
 			switch event.Rune() {
 			case '|':
+				t.cliPane.addPrompt()
+
+				t.stdinPane.reset()
+				t.stdoutPane.reset()
+
+				p := t.cliPane.prompt
 				go func() {
-					t.cliPane.disableHandler(func() {
-						t.cliPane.addPrompt()
-						t.stdoutPane.Clear()
-						t.stdinPane.SetText("Now Loading...")
-						t.stdoutPane.syncUpdate(func() {
-							t.stdinPane.setData(t.stdoutPane.data)
-						})
+					if p == "" {
+						t.stdinPane.setData(stdinBytes)
+					} else {
+						t.stdinPane.execCommand(p, stdinBytes)
+					}
+					var text string
+					t.QueueUpdate(func() {
+						text = t.cliPane.GetText()
 					})
-					t.stdoutPane.execCommand(t.cliPane.GetText(), t.stdinPane.data)
+					t.stdoutPane.execCommand(text, t.stdinPane.data)
 				}()
 				return nil
 			case ' ':
@@ -188,10 +206,9 @@ func (t *tui) setAction() {
 
 type cliPane struct {
 	*tview.InputField
-	symbol  string
-	prompt  string
-	disable bool
-	skip    bool
+	symbol string
+	prompt string
+	skip   bool
 }
 
 func newCliPane() *cliPane {
@@ -207,22 +224,14 @@ func newCliPane() *cliPane {
 	c := &cliPane{
 		InputField: inputField,
 		symbol:     symbol,
-		disable:    false,
 		skip:       false,
 	}
 	c.setPrompt(initCommand)
-
 	return c
 }
 
 func (c *cliPane) skipHandler() {
 	c.skip = true
-}
-
-func (c *cliPane) disableHandler(fn func()) {
-	c.disable = true
-	fn()
-	c.disable = false
 }
 
 func (c *cliPane) setPrompt(text string) {
@@ -252,7 +261,6 @@ func adjustPipe(text string) string {
 
 type viewPane struct {
 	*tview.TextView
-	data   []byte
 	ctx    context.Context
 	cancel context.CancelFunc
 	mu     sync.Mutex
@@ -266,57 +274,100 @@ func newViewPane(name string) *viewPane {
 		SetTitle(name).
 		SetBorder(true)
 
+	ctx, cancel := context.WithCancel(context.Background())
+
 	v := &viewPane{
 		TextView: textView,
-		data:     []byte(""),
+		ctx:      ctx,
+		cancel:   cancel,
 	}
 	return v
 }
 
-func (v *viewPane) setData(inputBytes []byte) {
-	v.reset()
-
-	tt := newTextLineTransformer()
-	w := transform.NewWriter(v, tt)
-
-	v.syncUpdate(func() {
-		v.data = make([]byte, len(inputBytes))
-		copy(v.data, inputBytes)
-		io.Copy(w, bytes.NewReader(inputBytes))
-	})
-}
-
-func (v *viewPane) execCommand(text string, inputBytes []byte) {
-	v.reset()
-
-	_data := new(bytes.Buffer)
-	tt := newTextLineTransformer()
-	w := transform.NewWriter(v, tt)
-	mw := io.MultiWriter(w, _data)
-
-	cmd := exec.CommandContext(v.ctx, shell, "-c", text)
-	cmd.Stdin = bytes.NewReader(inputBytes)
-	cmd.Stdout = mw
-
-	v.syncUpdate(func() {
-		cmd.Run()
-		v.data = _data.Bytes()
-	})
-}
-
 func (v *viewPane) syncUpdate(fn func()) {
 	v.mu.Lock()
+	defer v.mu.Unlock()
 	fn()
-	v.mu.Unlock()
 }
 
 func (v *viewPane) reset() {
 	v.Clear()
-
-	if v.cancel != nil {
-		v.cancel()
-	}
+	v.cancel()
 	v.ctx, v.cancel = context.WithCancel(context.Background())
+}
+
+type stdinViewPane struct {
+	*viewPane
+	data []byte
+}
+
+func newStdinViewPane() *stdinViewPane {
+	v := newViewPane("stdin")
+	si := &stdinViewPane{
+		viewPane: v,
+		data:     []byte(""),
+	}
+	return si
+}
+
+func (si *stdinViewPane) setData(inputBytes []byte) {
+	tt := newTextLineTransformer()
+	w := transform.NewWriter(si, tt)
+
+	si.syncUpdate(func() {
+		si.data = make([]byte, len(inputBytes))
+		copy(si.data, inputBytes)
+		io.Copy(w, bytes.NewReader(inputBytes))
+	})
+}
+
+func (si *stdinViewPane) execCommand(text string, inputBytes []byte) {
+	_data := new(bytes.Buffer)
+	tt := newTextLineTransformer()
+	w := transform.NewWriter(si, tt)
+	mw := io.MultiWriter(w, _data)
+
+	ctx, cancel := context.WithCancel(si.ctx)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, shell, "-c", text)
+
+	si.syncUpdate(func() {
+		cmd.Stdin = bytes.NewReader(inputBytes)
+		cmd.Stdout = mw
+
+		cmd.Run()
+		si.data = _data.Bytes()
+	})
+}
+
+type stdoutViewPane struct {
+	*viewPane
+}
+
+func newStdoutViewPane() *stdoutViewPane {
+	v := newViewPane("stdout")
+	so := &stdoutViewPane{
+		viewPane: v,
+	}
+	return so
+}
+
+func (so *stdoutViewPane) execCommand(text string, inputBytes []byte) {
+	tt := newTextLineTransformer()
+	w := transform.NewWriter(so, tt)
+
+	ctx, cancel := context.WithCancel(so.ctx)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, shell, "-c", text)
+
+	so.syncUpdate(func() {
+		cmd.Stdin = bytes.NewReader(inputBytes)
+		cmd.Stdout = w
+
+		cmd.Run()
+	})
 }
 
 type textLineTransformer struct {

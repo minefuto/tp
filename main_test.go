@@ -20,9 +20,8 @@ func TestSetPrompt(t *testing.T) {
 		{input: "ls | grep a", prompt: "ls ", text: " grep a"},
 		{input: "ls | grep a | wc", prompt: "ls | grep a ", text: " wc"},
 	}
-
-	c := newCliPane()
 	for _, tc := range cases {
+		c := newCliPane()
 		c.setPrompt(tc.input)
 		if !(c.prompt == tc.prompt) {
 			r := strings.Replace(fmt.Sprintf(`result:   "%s"`, c.prompt), "\n", "\\n", -1)
@@ -46,8 +45,8 @@ func TestAddPrompt(t *testing.T) {
 		{prompt: "", text: "ls ", result: "ls "},
 		{prompt: "ls |", text: " grep a", result: "ls | grep a"},
 	}
-	c := newCliPane()
 	for _, tc := range cases {
+		c := newCliPane()
 		c.setPrompt(tc.prompt)
 		c.SetText(tc.text)
 		c.addPrompt()
@@ -72,23 +71,23 @@ func TestSetData(t *testing.T) {
 		{input: "a\n", result: "a\n", result2: "a\n"},
 		{input: "a\na\na\na\na", result: "a\na\na\na\na", result2: "a\na\na"},
 	}
-	v := newViewPane("")
 	for _, tc := range cases {
-		v.setData([]byte(tc.input))
-		if !(bytes.Equal(v.data, []byte(tc.result))) {
-			r := strings.Replace(fmt.Sprintf(`result:   "%s"`, string(v.data)), "\n", "\\n", -1)
+		si := newStdinViewPane()
+		si.setData([]byte(tc.input))
+		if !(bytes.Equal(si.data, []byte(tc.result))) {
+			r := strings.Replace(fmt.Sprintf(`result:   "%s"`, string(si.data)), "\n", "\\n", -1)
 			e := strings.Replace(fmt.Sprintf(`expected: "%s"`, tc.result), "\n", "\\n", -1)
 			t.Errorf("\n%s\n%s", r, e)
 		}
-		if !(v.GetText(true) == tc.result2) {
-			r := strings.Replace(fmt.Sprintf(`result:   "%s"`, v.GetText(true)), "\n", "\\n", -1)
+		if !(si.GetText(true) == tc.result2) {
+			r := strings.Replace(fmt.Sprintf(`result:   "%s"`, si.GetText(true)), "\n", "\\n", -1)
 			e := strings.Replace(fmt.Sprintf(`expected: "%s"`, tc.result2), "\n", "\\n", -1)
 			t.Errorf("\n%s\n%s", r, e)
 		}
 	}
 }
 
-func TestExecCommand(t *testing.T) {
+func TestExecCommandStdin(t *testing.T) {
 	shell = "sh"
 	getTerminalHeight = func() int {
 		return 6
@@ -103,17 +102,42 @@ func TestExecCommand(t *testing.T) {
 		{cmd: "echo a", stdin: "", result: "a\n", result2: "a\n"},
 		{cmd: "grep a", stdin: "a\nb\na\na\n", result: "a\na\na\n", result2: "a\na\na"},
 	}
-	v := newViewPane("test")
 	for _, tc := range cases {
-		v.execCommand(tc.cmd, []byte(tc.stdin))
-		if !(bytes.Equal(v.data, []byte(tc.result))) {
-			r := strings.Replace(fmt.Sprintf(`result:   "%s"`, string(v.data)), "\n", "\\n", -1)
+		si := newStdinViewPane()
+		si.execCommand(tc.cmd, []byte(tc.stdin))
+		if !(bytes.Equal(si.data, []byte(tc.result))) {
+			r := strings.Replace(fmt.Sprintf(`result:   "%s"`, string(si.data)), "\n", "\\n", -1)
 			e := strings.Replace(fmt.Sprintf(`expected: "%s"`, tc.result), "\n", "\\n", -1)
 			t.Errorf("\n%s\n%s", r, e)
 		}
-		if !(v.GetText(true) == tc.result2) {
-			r := strings.Replace(fmt.Sprintf(`result:   "%s"`, v.GetText(true)), "\n", "\\n", -1)
+		if !(si.GetText(true) == tc.result2) {
+			r := strings.Replace(fmt.Sprintf(`result:   "%s"`, si.GetText(true)), "\n", "\\n", -1)
 			e := strings.Replace(fmt.Sprintf(`expected: "%s"`, tc.result2), "\n", "\\n", -1)
+			t.Errorf("\n%s\n%s", r, e)
+		}
+	}
+}
+
+func TestExecCommandStdout(t *testing.T) {
+	shell = "sh"
+	getTerminalHeight = func() int {
+		return 6
+	}
+
+	cases := []struct {
+		cmd    string
+		stdin  string
+		result string
+	}{
+		{cmd: "echo a", stdin: "", result: "a\n"},
+		{cmd: "grep a", stdin: "a\nb\na\na\n", result: "a\na\na"},
+	}
+	for _, tc := range cases {
+		so := newStdoutViewPane()
+		so.execCommand(tc.cmd, []byte(tc.stdin))
+		if !(so.GetText(true) == tc.result) {
+			r := strings.Replace(fmt.Sprintf(`result:   "%s"`, so.GetText(true)), "\n", "\\n", -1)
+			e := strings.Replace(fmt.Sprintf(`expected: "%s"`, tc.result), "\n", "\\n", -1)
 			t.Errorf("\n%s\n%s", r, e)
 		}
 	}
