@@ -130,6 +130,7 @@ func TestExecCommandStdout(t *testing.T) {
 		result string
 	}{
 		{cmd: "echo a", stdin: "", result: "a\n"},
+		{cmd: "echo a 1>&2", stdin: "", result: "a\n"},
 		{cmd: "grep a", stdin: "a\nb\na\na\n", result: "a\na\na"},
 	}
 	for _, tc := range cases {

@@ -148,6 +148,7 @@ func (t *tui) setAction() {
 			cmd := exec.Command(shell, "-c", adjustPipe(t.cliPane.prompt)+t.cliPane.GetText())
 			cmd.Stdin = bytes.NewReader(stdinBytes)
 			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
 			cmd.Run()
 
 			return nil
@@ -346,7 +347,7 @@ type stdoutViewPane struct {
 }
 
 func newStdoutViewPane() *stdoutViewPane {
-	v := newViewPane("stdout")
+	v := newViewPane("stdout/stderr")
 	so := &stdoutViewPane{
 		viewPane: v,
 	}
@@ -365,6 +366,7 @@ func (so *stdoutViewPane) execCommand(text string, inputBytes []byte) {
 	so.syncUpdate(func() {
 		cmd.Stdin = bytes.NewReader(inputBytes)
 		cmd.Stdout = w
+		cmd.Stderr = w
 
 		cmd.Run()
 	})
