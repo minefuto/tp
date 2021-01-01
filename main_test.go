@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"strings"
@@ -104,7 +105,9 @@ func TestExecCommandStdin(t *testing.T) {
 	}
 	for _, tc := range cases {
 		si := newStdinViewPane()
-		si.execCommand(tc.cmd, []byte(tc.stdin))
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		si.execCommand(ctx, tc.cmd, []byte(tc.stdin))
 		if !(bytes.Equal(si.data, []byte(tc.result))) {
 			r := strings.Replace(fmt.Sprintf(`result:   "%s"`, string(si.data)), "\n", "\\n", -1)
 			e := strings.Replace(fmt.Sprintf(`expected: "%s"`, tc.result), "\n", "\\n", -1)
@@ -135,7 +138,9 @@ func TestExecCommandStdout(t *testing.T) {
 	}
 	for _, tc := range cases {
 		so := newStdoutViewPane()
-		so.execCommand(tc.cmd, []byte(tc.stdin))
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		so.execCommand(ctx, tc.cmd, []byte(tc.stdin))
 		if !(so.GetText(true) == tc.result) {
 			r := strings.Replace(fmt.Sprintf(`result:   "%s"`, so.GetText(true)), "\n", "\\n", -1)
 			e := strings.Replace(fmt.Sprintf(`expected: "%s"`, tc.result), "\n", "\\n", -1)

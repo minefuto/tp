@@ -82,21 +82,29 @@ func newTui() *tui {
 func (t *tui) start() int {
 	t.setAction()
 
-	t.stdinPane.reset()
-	t.stdoutPane.reset()
+	stdinCtx, stdinCancel := context.WithCancel(t.stdinPane.ctx)
+	stdoutCtx, stdoutCancel := context.WithCancel(t.stdoutPane.ctx)
 
 	p := t.cliPane.prompt
+	t.cliPane.syncUpdate(func() {
+		t.cliPane.wg.Add(1)
+	})
 	go func() {
+		defer t.cliPane.wg.Done()
+		defer stdinCancel()
+		defer stdoutCancel()
 		if p == "" {
 			t.stdinPane.setData(stdinBytes)
 		} else {
-			t.stdinPane.execCommand(p, stdinBytes)
+			t.stdinPane.execCommand(stdinCtx, p, stdinBytes)
 		}
 		var text string
 		t.QueueUpdate(func() {
 			text = t.cliPane.GetText()
 		})
-		t.stdoutPane.execCommand(text, t.stdinPane.data)
+		t.stdinPane.syncUpdate(func() {
+			t.stdoutPane.execCommand(stdoutCtx, text, t.stdinPane.data)
+		})
 	}()
 
 	if err := t.Run(); err != nil {
@@ -113,9 +121,16 @@ func (t *tui) setAction() {
 			return
 		}
 		t.stdoutPane.reset()
+		stdoutCtx, stdoutCancel := context.WithCancel(t.stdoutPane.ctx)
 
 		go func() {
-			t.stdoutPane.execCommand(text, t.stdinPane.data)
+			defer stdoutCancel()
+			t.cliPane.syncUpdate(func() {
+				t.cliPane.wg.Wait()
+			})
+			t.stdinPane.syncUpdate(func() {
+				t.stdoutPane.execCommand(stdoutCtx, text, t.stdinPane.data)
+			})
 		}()
 	})
 
@@ -140,6 +155,7 @@ func (t *tui) setAction() {
 			t.stdinPane.cancel()
 			t.stdoutPane.cancel()
 			t.Stop()
+
 			if commandFlag {
 				fmt.Println(adjustPipe(t.cliPane.prompt) + t.cliPane.GetText())
 				return nil
@@ -150,7 +166,6 @@ func (t *tui) setAction() {
 			cmd.Stdout = os.Stdout
 			cmd.Stderr = os.Stderr
 			cmd.Run()
-
 			return nil
 
 		case tcell.KeyBackspace, tcell.KeyBackspace2:
@@ -161,15 +176,30 @@ func (t *tui) setAction() {
 				t.cliPane.setPrompt(t.cliPane.prompt)
 
 				t.stdinPane.reset()
+				stdinCtx, stdinCancel := context.WithCancel(t.stdinPane.ctx)
 				t.stdoutPane.reset()
+				stdoutCtx, stdoutCancel := context.WithCancel(t.stdoutPane.ctx)
 
 				p := t.cliPane.prompt
+				t.cliPane.syncUpdate(func() {
+					t.cliPane.wg.Add(1)
+				})
 				go func() {
+					defer t.cliPane.wg.Done()
+					defer stdinCancel()
+					defer stdoutCancel()
 					if p == "" {
 						t.stdinPane.setData(stdinBytes)
 					} else {
-						t.stdinPane.execCommand(p, stdinBytes)
+						t.stdinPane.execCommand(stdinCtx, p, stdinBytes)
 					}
+					var text string
+					t.QueueUpdate(func() {
+						text = t.cliPane.GetText()
+					})
+					t.stdinPane.syncUpdate(func() {
+						t.stdoutPane.execCommand(stdoutCtx, text, t.stdinPane.data)
+					})
 				}()
 				return nil
 			}
@@ -181,20 +211,21 @@ func (t *tui) setAction() {
 				t.cliPane.addPrompt()
 
 				t.stdinPane.reset()
+				stdinCtx, stdinCancel := context.WithCancel(t.stdinPane.ctx)
 				t.stdoutPane.reset()
 
 				p := t.cliPane.prompt
+				t.cliPane.syncUpdate(func() {
+					t.cliPane.wg.Add(1)
+				})
 				go func() {
+					defer t.cliPane.wg.Done()
+					defer stdinCancel()
 					if p == "" {
 						t.stdinPane.setData(stdinBytes)
 					} else {
-						t.stdinPane.execCommand(p, stdinBytes)
+						t.stdinPane.execCommand(stdinCtx, p, stdinBytes)
 					}
-					var text string
-					t.QueueUpdate(func() {
-						text = t.cliPane.GetText()
-					})
-					t.stdoutPane.execCommand(text, t.stdinPane.data)
 				}()
 				return nil
 			case ' ':
@@ -210,6 +241,8 @@ type cliPane struct {
 	symbol string
 	prompt string
 	skip   bool
+	wg     sync.WaitGroup
+	mu     sync.Mutex
 }
 
 func newCliPane() *cliPane {
@@ -229,6 +262,12 @@ func newCliPane() *cliPane {
 	}
 	c.setPrompt(initCommand)
 	return c
+}
+
+func (c *cliPane) syncUpdate(fn func()) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	fn()
 }
 
 func (c *cliPane) skipHandler() {
@@ -318,26 +357,23 @@ func (si *stdinViewPane) setData(inputBytes []byte) {
 	si.syncUpdate(func() {
 		si.data = make([]byte, len(inputBytes))
 		copy(si.data, inputBytes)
-		io.Copy(w, bytes.NewReader(inputBytes))
-	})
+	}) //
+	io.Copy(w, bytes.NewReader(inputBytes))
 }
 
-func (si *stdinViewPane) execCommand(text string, inputBytes []byte) {
+func (si *stdinViewPane) execCommand(ctx context.Context, text string, inputBytes []byte) {
 	_data := new(bytes.Buffer)
 	tt := newTextLineTransformer()
 	w := transform.NewWriter(si, tt)
 	mw := io.MultiWriter(w, _data)
 
-	ctx, cancel := context.WithCancel(si.ctx)
-	defer cancel()
-
 	cmd := exec.CommandContext(ctx, shell, "-c", text)
 
-	si.syncUpdate(func() {
-		cmd.Stdin = bytes.NewReader(inputBytes)
-		cmd.Stdout = mw
+	cmd.Stdin = bytes.NewReader(inputBytes)
+	cmd.Stdout = mw
 
-		cmd.Run()
+	cmd.Run()
+	si.syncUpdate(func() {
 		si.data = _data.Bytes()
 	})
 }
@@ -354,22 +390,17 @@ func newStdoutViewPane() *stdoutViewPane {
 	return so
 }
 
-func (so *stdoutViewPane) execCommand(text string, inputBytes []byte) {
+func (so *stdoutViewPane) execCommand(ctx context.Context, text string, inputBytes []byte) {
 	tt := newTextLineTransformer()
 	w := transform.NewWriter(so, tt)
 
-	ctx, cancel := context.WithCancel(so.ctx)
-	defer cancel()
-
 	cmd := exec.CommandContext(ctx, shell, "-c", text)
 
-	so.syncUpdate(func() {
-		cmd.Stdin = bytes.NewReader(inputBytes)
-		cmd.Stdout = w
-		cmd.Stderr = w
+	cmd.Stdin = bytes.NewReader(inputBytes)
+	cmd.Stdout = w
+	cmd.Stderr = w
 
-		cmd.Run()
-	})
+	cmd.Run()
 }
 
 type textLineTransformer struct {
