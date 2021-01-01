@@ -1,0 +1,29 @@
+project_name: tp
+release:
+  github:
+    owner: minefuto
+    name: tp
+env:
+  - GO111MODULE=on
+before:
+  hooks:
+    - go mod tidy
+builds:
+  - main: .
+    binary: tp
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.ShortCommit}}
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+changelog:
+  skip: true
+archives:
+  - files:
+    - LICENSE*

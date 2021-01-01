@@ -20,9 +20,10 @@ import (
 	"golang.org/x/text/transform"
 )
 
-const (
+var (
 	name    = "tp"
 	version = "0.1.0"
+	commit  = "devel"
 )
 
 var (
@@ -479,7 +480,7 @@ func main() {
 	}
 
 	if versionFlag {
-		fmt.Printf("%s version %s\n", name, version)
+		fmt.Printf("%s version %s-%s\n", name, version, commit)
 		os.Exit(0)
 	}
 
