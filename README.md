@@ -1,14 +1,17 @@
-# tp - Transparent Pipeline
-![build](https://img.shields.io/github/workflow/status/minefuto/tp/build?style=for-the-badge)
-![license](https://img.shields.io/github/license/minefuto/tp?style=for-the-badge)
+# Transparent Pipe : A terminal-based pipeline command
+[![Go Report Card](https://goreportcard.com/badge/github.com/minefuto/tp)](https://goreportcard.com/report/github.com/minefuto/tp)
+![GitHub Workflow Status](https://img.shields.io/github/workflow/status/minefuto/tp/build)
+![GitHub release (latest by date)](https://img.shields.io/github/v/release/minefuto/tp)
+![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/minefuto/tp)
+![GitHub](https://img.shields.io/github/license/minefuto/tp)
 
-This is a tool that interactively previews the command's stdin/stdout.
+This is a terminal-based application for interactively previews the stdin/stdout around the pipeline.
 
 ## Installation
 ```
 $ git clone https://github.com/minefuto/tp.git
 $ cd tp
-$ go install
+$ make install
 ```
 
 ## Usage
