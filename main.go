@@ -22,8 +22,8 @@ import (
 
 var (
 	name    = "tp"
-	version = "0.1.0"
-	commit  = "devel"
+	version = ""
+	commit  = ""
 )
 
 var (
