@@ -310,6 +310,7 @@ type viewPane struct {
 func newViewPane(name string) *viewPane {
 	textView := tview.NewTextView()
 	textView.SetWrap(false).
+		SetDynamicColors(true).
 		SetScrollable(false).
 		SetTitleAlign(tview.AlignLeft).
 		SetTitle(name).
@@ -353,7 +354,7 @@ func newStdinViewPane() *stdinViewPane {
 
 func (si *stdinViewPane) setData(inputBytes []byte) {
 	tt := newTextLineTransformer()
-	w := transform.NewWriter(si, tt)
+	w := transform.NewWriter(tview.ANSIWriter(si), tt)
 
 	si.syncUpdate(func() {
 		si.data = make([]byte, len(inputBytes))
@@ -365,7 +366,7 @@ func (si *stdinViewPane) setData(inputBytes []byte) {
 func (si *stdinViewPane) execCommand(ctx context.Context, text string, inputBytes []byte) {
 	_data := new(bytes.Buffer)
 	tt := newTextLineTransformer()
-	w := transform.NewWriter(si, tt)
+	w := transform.NewWriter(tview.ANSIWriter(si), tt)
 	mw := io.MultiWriter(w, _data)
 
 	cmd := exec.CommandContext(ctx, shell, "-c", text)
@@ -393,7 +394,7 @@ func newStdoutViewPane() *stdoutViewPane {
 
 func (so *stdoutViewPane) execCommand(ctx context.Context, text string, inputBytes []byte) {
 	tt := newTextLineTransformer()
-	w := transform.NewWriter(so, tt)
+	w := transform.NewWriter(tview.ANSIWriter(so), tt)
 
 	cmd := exec.CommandContext(ctx, shell, "-c", text)
 
