@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"strings"
 	"sync"
+	"time"
 
 	flag "github.com/cornfeedhobo/pflag"
 	"github.com/gdamore/tcell/v2"
@@ -107,6 +108,22 @@ func (t *tui) start() int {
 			t.stdoutPane.execCommand(stdoutCtx, text, t.stdinPane.data)
 		})
 	}()
+	go func() {
+		s := spinner()
+		for {
+			select {
+			case <-stdinCtx.Done():
+				t.QueueUpdateDraw(func() {
+					t.stdoutPane.SetTitle(t.stdoutPane.name)
+				})
+				return
+			case <-time.After(100 * time.Millisecond):
+				t.QueueUpdateDraw(func() {
+					t.stdoutPane.SetTitle(t.stdoutPane.name + s())
+				})
+			}
+		}
+	}()
 
 	if err := t.Run(); err != nil {
 		t.Stop()
@@ -202,6 +219,22 @@ func (t *tui) setAction() {
 						t.stdoutPane.execCommand(stdoutCtx, text, t.stdinPane.data)
 					})
 				}()
+				go func() {
+					s := spinner()
+					for {
+						select {
+						case <-stdinCtx.Done():
+							t.QueueUpdateDraw(func() {
+								t.stdoutPane.SetTitle(t.stdoutPane.name)
+							})
+							return
+						case <-time.After(100 * time.Millisecond):
+							t.QueueUpdateDraw(func() {
+								t.stdoutPane.SetTitle(t.stdoutPane.name + s())
+							})
+						}
+					}
+				}()
 				return nil
 			}
 			return event
@@ -228,6 +261,22 @@ func (t *tui) setAction() {
 						t.stdinPane.execCommand(stdinCtx, p, stdinBytes)
 					}
 				}()
+				go func() {
+					s := spinner()
+					for {
+						select {
+						case <-stdinCtx.Done():
+							t.QueueUpdateDraw(func() {
+								t.stdoutPane.SetTitle(t.stdoutPane.name)
+							})
+							return
+						case <-time.After(100 * time.Millisecond):
+							t.QueueUpdateDraw(func() {
+								t.stdoutPane.SetTitle(t.stdoutPane.name + s())
+							})
+						}
+					}
+				}()
 				return nil
 			case ' ':
 				t.cliPane.skipHandler()
@@ -235,6 +284,16 @@ func (t *tui) setAction() {
 		}
 		return event
 	})
+}
+
+func spinner() func() string {
+	c := 0
+	spinners := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+	return func() string {
+		i := c % len(spinners)
+		c++
+		return spinners[i]
+	}
 }
 
 type cliPane struct {
@@ -302,6 +361,7 @@ func adjustPipe(text string) string {
 
 type viewPane struct {
 	*tview.TextView
+	name   string
 	ctx    context.Context
 	cancel context.CancelFunc
 	mu     sync.Mutex
@@ -320,6 +380,7 @@ func newViewPane(name string) *viewPane {
 
 	v := &viewPane{
 		TextView: textView,
+		name:     name,
 		ctx:      ctx,
 		cancel:   cancel,
 	}
