@@ -15,7 +15,6 @@ import (
 	flag "github.com/cornfeedhobo/pflag"
 	"github.com/gdamore/tcell/v2"
 	"github.com/mattn/go-isatty"
-	"github.com/mattn/go-runewidth"
 	"github.com/rivo/tview"
 	"golang.org/x/crypto/ssh/terminal"
 	"golang.org/x/text/transform"
@@ -78,86 +77,28 @@ func newTui() *tui {
 		stdoutPane:  stdoutPane,
 	}
 	t.SetRoot(flex, true).SetFocus(cliPane)
+	t.setAction()
 	return t
 }
 
-func (t *tui) start() int {
-	t.setAction()
-
-	stdinCtx, stdinCancel := context.WithCancel(t.stdinPane.ctx)
-	stdoutCtx, stdoutCancel := context.WithCancel(t.stdoutPane.ctx)
-
-	p := t.cliPane.prompt
-	t.cliPane.syncUpdate(func() {
-		t.cliPane.wg.Add(1)
-	})
-	go func() {
-		defer t.cliPane.wg.Done()
-		defer stdinCancel()
-		defer stdoutCancel()
-		if p == "" {
-			t.stdinPane.setData(stdinBytes)
-		} else {
-			t.stdinPane.execCommand(stdinCtx, p, stdinBytes)
-		}
-		var text string
-		t.QueueUpdate(func() {
-			text = t.cliPane.GetText()
-		})
-		t.stdinPane.syncUpdate(func() {
-			t.stdoutPane.execCommand(stdoutCtx, text, t.stdinPane.data)
-		})
-	}()
-	go func() {
-		s := spinner()
-		for {
-			select {
-			case <-stdinCtx.Done():
-				t.QueueUpdateDraw(func() {
-					t.stdoutPane.SetTitle(t.stdoutPane.name)
-				})
-				return
-			case <-time.After(100 * time.Millisecond):
-				t.QueueUpdateDraw(func() {
-					t.stdoutPane.SetTitle(t.stdoutPane.name + s())
-				})
-			}
-		}
-	}()
-
-	if err := t.Run(); err != nil {
-		t.Stop()
-		return 1
-	}
-	return 0
-}
-
 func (t *tui) setAction() {
-	t.cliPane.SetChangedFunc(func(text string) {
-		if t.cliPane.skip {
-			t.cliPane.skip = false
-			return
-		}
-		t.stdoutPane.reset()
-		stdoutCtx, stdoutCancel := context.WithCancel(t.stdoutPane.ctx)
-
-		go func() {
-			defer stdoutCancel()
-			t.cliPane.syncUpdate(func() {
-				t.cliPane.wg.Wait()
-			})
-			t.stdinPane.syncUpdate(func() {
-				t.stdoutPane.execCommand(stdoutCtx, text, t.stdinPane.data)
-			})
-		}()
-	})
-
 	t.stdinPane.SetChangedFunc(func() {
 		t.Draw()
 	})
 
 	t.stdoutPane.SetChangedFunc(func() {
 		t.Draw()
+	})
+
+	t.cliPane.SetChangedFunc(func(text string) {
+		_trimText := strings.TrimSpace(text)
+		if t.cliPane.trimText == _trimText {
+			t.cliPane.trimText = _trimText
+			return
+		}
+		t.cliPane.trimText = _trimText
+		t.stdoutPane.reset()
+		t.updateStdoutView(text)
 	})
 
 	t.cliPane.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
@@ -192,49 +133,8 @@ func (t *tui) setAction() {
 					return event
 				}
 				t.cliPane.setPrompt(t.cliPane.prompt)
-
 				t.stdinPane.reset()
-				stdinCtx, stdinCancel := context.WithCancel(t.stdinPane.ctx)
-				t.stdoutPane.reset()
-				stdoutCtx, stdoutCancel := context.WithCancel(t.stdoutPane.ctx)
-
-				p := t.cliPane.prompt
-				t.cliPane.syncUpdate(func() {
-					t.cliPane.wg.Add(1)
-				})
-				go func() {
-					defer t.cliPane.wg.Done()
-					defer stdinCancel()
-					defer stdoutCancel()
-					if p == "" {
-						t.stdinPane.setData(stdinBytes)
-					} else {
-						t.stdinPane.execCommand(stdinCtx, p, stdinBytes)
-					}
-					var text string
-					t.QueueUpdate(func() {
-						text = t.cliPane.GetText()
-					})
-					t.stdinPane.syncUpdate(func() {
-						t.stdoutPane.execCommand(stdoutCtx, text, t.stdinPane.data)
-					})
-				}()
-				go func() {
-					s := spinner()
-					for {
-						select {
-						case <-stdinCtx.Done():
-							t.QueueUpdateDraw(func() {
-								t.stdoutPane.SetTitle(t.stdoutPane.name)
-							})
-							return
-						case <-time.After(100 * time.Millisecond):
-							t.QueueUpdateDraw(func() {
-								t.stdoutPane.SetTitle(t.stdoutPane.name + s())
-							})
-						}
-					}
-				}()
+				t.updateStdinView()
 				return nil
 			}
 			return event
@@ -243,47 +143,72 @@ func (t *tui) setAction() {
 			switch event.Rune() {
 			case '|':
 				t.cliPane.addPrompt()
-
 				t.stdinPane.reset()
-				stdinCtx, stdinCancel := context.WithCancel(t.stdinPane.ctx)
-				t.stdoutPane.reset()
-
-				p := t.cliPane.prompt
-				t.cliPane.syncUpdate(func() {
-					t.cliPane.wg.Add(1)
-				})
-				go func() {
-					defer t.cliPane.wg.Done()
-					defer stdinCancel()
-					if p == "" {
-						t.stdinPane.setData(stdinBytes)
-					} else {
-						t.stdinPane.execCommand(stdinCtx, p, stdinBytes)
-					}
-				}()
-				go func() {
-					s := spinner()
-					for {
-						select {
-						case <-stdinCtx.Done():
-							t.QueueUpdateDraw(func() {
-								t.stdoutPane.SetTitle(t.stdoutPane.name)
-							})
-							return
-						case <-time.After(100 * time.Millisecond):
-							t.QueueUpdateDraw(func() {
-								t.stdoutPane.SetTitle(t.stdoutPane.name + s())
-							})
-						}
-					}
-				}()
+				t.updateStdinView()
 				return nil
-			case ' ':
-				t.cliPane.skipHandler()
 			}
 		}
 		return event
 	})
+}
+
+func (t *tui) start() int {
+	t.updateStdinView()
+	t.updateStdoutView(t.cliPane.GetText())
+
+	if err := t.Run(); err != nil {
+		t.Stop()
+		return 1
+	}
+	return 0
+}
+
+func (t *tui) updateStdinView() {
+	stdinCtx, stdinCancel := context.WithCancel(t.stdinPane.ctx)
+
+	p := t.cliPane.prompt
+	t.cliPane.syncUpdate(func() {
+		t.cliPane.wg.Add(1)
+	})
+	go func() {
+		defer t.cliPane.wg.Done()
+		defer stdinCancel()
+		if p == "" {
+			t.stdinPane.setData(stdinBytes)
+		} else {
+			t.stdinPane.execCommand(stdinCtx, p, stdinBytes)
+		}
+	}()
+	go func() {
+		s := spinner()
+		for {
+			select {
+			case <-stdinCtx.Done():
+				t.QueueUpdateDraw(func() {
+					t.stdoutPane.SetTitle(t.stdoutPane.name)
+				})
+				return
+			case <-time.After(100 * time.Millisecond):
+				t.QueueUpdateDraw(func() {
+					t.stdoutPane.SetTitle(t.stdoutPane.name + s())
+				})
+			}
+		}
+	}()
+}
+
+func (t *tui) updateStdoutView(text string) {
+	stdoutCtx, stdoutCancel := context.WithCancel(t.stdoutPane.ctx)
+
+	go func() {
+		defer stdoutCancel()
+		t.cliPane.syncUpdate(func() {
+			t.cliPane.wg.Wait()
+		})
+		t.stdinPane.syncUpdate(func() {
+			t.stdoutPane.execCommand(stdoutCtx, text, t.stdinPane.data)
+		})
+	}()
 }
 
 func spinner() func() string {
@@ -298,11 +223,11 @@ func spinner() func() string {
 
 type cliPane struct {
 	*tview.InputField
-	symbol string
-	prompt string
-	skip   bool
-	wg     sync.WaitGroup
-	mu     sync.Mutex
+	symbol   string
+	prompt   string
+	trimText string
+	wg       sync.WaitGroup
+	mu       sync.Mutex
 }
 
 func newCliPane() *cliPane {
@@ -318,7 +243,6 @@ func newCliPane() *cliPane {
 	c := &cliPane{
 		InputField: inputField,
 		symbol:     symbol,
-		skip:       false,
 	}
 	c.setPrompt(initCommand)
 	return c
@@ -328,10 +252,6 @@ func (c *cliPane) syncUpdate(fn func()) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	fn()
-}
-
-func (c *cliPane) skipHandler() {
-	c.skip = true
 }
 
 func (c *cliPane) setPrompt(text string) {
@@ -420,7 +340,7 @@ func (si *stdinViewPane) setData(inputBytes []byte) {
 	si.syncUpdate(func() {
 		si.data = make([]byte, len(inputBytes))
 		copy(si.data, inputBytes)
-	}) //
+	})
 	io.Copy(w, bytes.NewReader(inputBytes))
 }
 
@@ -526,8 +446,6 @@ func (tt *textLineTransformer) Transform(dst, src []byte, atEOF bool) (nDst, nSr
 }
 
 func main() {
-	runewidth.DefaultCondition.EastAsianWidth = false
-
 	flag.BoolVarP(&helpFlag, "help", "h", false, "Show help")
 	flag.BoolVar(&horizontalFlag, "horizontal", false, "Split the view horizontally")
 	flag.BoolVarP(&versionFlag, "version", "v", false, "Show version")
