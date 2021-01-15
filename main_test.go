@@ -11,6 +11,17 @@ import (
 	"golang.org/x/text/transform"
 )
 
+func TestSpinner(t *testing.T) {
+	cases := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+	s := spinner()
+	for i := 0; i < len(cases)+1; i++ {
+		result := s()
+		if !(result == cases[i%len(cases)]) {
+			t.Errorf("result: %s, expected: %s", result, cases[i%len(cases)])
+		}
+	}
+}
+
 func TestSetPrompt(t *testing.T) {
 	cases := []struct {
 		input  string
