@@ -1,7 +1,7 @@
 NAME := tp
 VERSION := $(shell git describe --tags --abbrev=0)
 COMMIT := $(shell git rev-parse --short HEAD)
-LDFLAGS := -X 'main.version=$(VERSION)' -X 'main.commit=$(COMMIT)'
+LDFLAGS := -s -w -X 'main.version=$(VERSION)' -X 'main.commit=$(COMMIT)'
 
 all: build
 
@@ -20,3 +20,6 @@ run: build
 
 install:
 	@go install -ldflags "$(LDFLAGS)"
+
+uninstall:
+	@rm $(GOBIN)/tp
