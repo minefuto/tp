@@ -22,30 +22,30 @@ Add the following to shell's config file.
 `<key>`: Specify any key.  
 **Bash(`.bashrc`)**
 ```
-function transparent-pipeline() {
+function transparent-pipe() {
   READLINE_LINE=$(tp -c "${READLINE_LINE}|")
   READLINE_POINT=${#READLINE_LINE}
 }
-bind -x '"<key>": transparent-pipeline'
+bind -x '"<key>": transparent-pipe'
 ```
 **Zsh(`.zshrc`)**
 ```
-function transparent-pipeline() {
+function transparent-pipe() {
   BUFFER="$(tp -c "${BUFFER}|")"
   CURSOR=$#BUFFER
 }
 zle -N transparent-pipeline
-bindkey "<key>" transparent-pipeline
+bindkey "<key>" transparent-pipe
 ```
 **Fish(`config.fish`)**
 ```
-function transparent-pipeline
+function transparent-pipe
   commandline | read -l buffer
   commandline -r (tp -c "$buffer|")
   commandline -f repaint
 end
 function fish_user_key_bindings
-  bind "<key>" transparent-pipeline
+  bind "<key>" transparent-pipe
 end
 ```
 

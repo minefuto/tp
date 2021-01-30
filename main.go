@@ -56,7 +56,7 @@ func newTui() *tui {
 	flex := tview.NewFlex()
 	if horizontalFlag {
 		flex.SetDirection(tview.FlexRow).
-			AddItem(cliPane, 1, 1, false).
+			AddItem(cliPane, 1, 0, false).
 			AddItem(stdinPane, 0, 1, false).
 			AddItem(stdoutPane, 0, 1, false)
 	} else {
@@ -66,7 +66,7 @@ func newTui() *tui {
 			AddItem(stdoutPane, 0, 1, false)
 
 		flex.SetDirection(tview.FlexRow).
-			AddItem(cliPane, 1, 1, false).
+			AddItem(cliPane, 1, 0, false).
 			AddItem(viewPanes, 0, 1, false)
 	}
 
@@ -104,13 +104,13 @@ func (t *tui) setAction() {
 	t.cliPane.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlF:
-			return tcell.NewEventKey(tcell.KeyRight, ' ', tcell.ModNone)
+			return tcell.NewEventKey(tcell.KeyRight, 0, tcell.ModNone)
 
 		case tcell.KeyCtrlB:
-			return tcell.NewEventKey(tcell.KeyLeft, ' ', tcell.ModNone)
+			return tcell.NewEventKey(tcell.KeyLeft, 0, tcell.ModNone)
 
 		case tcell.KeyCtrlD:
-			return tcell.NewEventKey(tcell.KeyDelete, ' ', tcell.ModNone)
+			return tcell.NewEventKey(tcell.KeyDelete, 0, tcell.ModNone)
 
 		case tcell.KeyCtrlC:
 			if commandFlag {
