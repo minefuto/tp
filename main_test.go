@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -26,19 +27,18 @@ func TestGetBlockList(t *testing.T) {
 		{input: "a", result: []string{"a"}},
 		{input: "a:b", result: []string{"a", "b"}},
 	}
-
 	for _, tc := range cases {
 		input = tc.input
 		result := getBlockList()
-		if !(reflect.DeepEqual(result, tc.result)) {
-			r := `result:   "%s"`
-			e := `expected: "%s"`
-			t.Errorf("\n%s\n%s", r, e)
+		if !reflect.DeepEqual(result, tc.result) {
+			t.Errorf("result: %s, expected: %s", result, tc.result)
 		}
 	}
 }
 
 func TestIsBlock(t *testing.T) {
+	blockCommands = []string{"rm"}
+
 	cases := []struct {
 		input  string
 		result bool
@@ -47,24 +47,21 @@ func TestIsBlock(t *testing.T) {
 		{input: "rm aaa", result: true},
 		{input: "rma aaa", result: false},
 	}
-
 	for _, tc := range cases {
-		if isBlock(tc.input) != tc.result {
-			r := `result:   "%s"`
-			e := `expected: "%s"`
-			t.Errorf("\n%s\n%s", r, e)
+		result := isBlock(tc.input)
+		if result != tc.result {
+			t.Errorf("result: %s, expected: %s", strconv.FormatBool(result), strconv.FormatBool(tc.result))
 		}
 	}
-
 }
 
 func TestSpinner(t *testing.T) {
 	cases := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
 	s := spinner()
-	for i := 0; i < len(cases)+1; i++ {
+	for _, tc := range cases {
 		result := s()
-		if !(result == cases[i%len(cases)]) {
-			t.Errorf("result: %s, expected: %s", result, cases[i%len(cases)])
+		if result != tc {
+			t.Errorf("result: %s, expected: %s", result, tc)
 		}
 	}
 }
@@ -82,12 +79,12 @@ func TestSetPrompt(t *testing.T) {
 	for _, tc := range cases {
 		c := newCliPane()
 		c.setPrompt(tc.input)
-		if !(c.prompt == tc.prompt) {
+		if c.prompt != tc.prompt {
 			r := strings.Replace(fmt.Sprintf(`result:   "%s"`, c.prompt), "\n", "\\n", -1)
 			e := strings.Replace(fmt.Sprintf(`expected: "%s"`, tc.prompt), "\n", "\\n", -1)
 			t.Errorf("\n%s\n%s", r, e)
 		}
-		if !(c.GetText() == tc.text) {
+		if c.GetText() != tc.text {
 			r := strings.Replace(fmt.Sprintf(`result:   "%s"`, c.GetText()), "\n", "\\n", -1)
 			e := strings.Replace(fmt.Sprintf(`expected: "%s"`, tc.text), "\n", "\\n", -1)
 			t.Errorf("\n%s\n%s", r, e)
@@ -109,7 +106,7 @@ func TestAddPrompt(t *testing.T) {
 		c.setPrompt(tc.prompt)
 		c.SetText(tc.text)
 		c.addPrompt()
-		if !(c.prompt == tc.result) {
+		if c.prompt != tc.result {
 			r := strings.Replace(fmt.Sprintf(`result:   "%s"`, c.prompt), "\n", "\\n", -1)
 			e := strings.Replace(fmt.Sprintf(`expected: "%s"`, tc.result), "\n", "\\n", -1)
 			t.Errorf("\n%s\n%s", r, e)
@@ -133,12 +130,12 @@ func TestSetData(t *testing.T) {
 	for _, tc := range cases {
 		si := newStdinViewPane()
 		si.setData([]byte(tc.input))
-		if !(bytes.Equal(si.data, []byte(tc.result))) {
+		if !bytes.Equal(si.data, []byte(tc.result)) {
 			r := strings.Replace(fmt.Sprintf(`result:   "%s"`, string(si.data)), "\n", "\\n", -1)
 			e := strings.Replace(fmt.Sprintf(`expected: "%s"`, tc.result), "\n", "\\n", -1)
 			t.Errorf("\n%s\n%s", r, e)
 		}
-		if !(si.GetText(true) == tc.result2) {
+		if si.GetText(true) != tc.result2 {
 			r := strings.Replace(fmt.Sprintf(`result:   "%s"`, si.GetText(true)), "\n", "\\n", -1)
 			e := strings.Replace(fmt.Sprintf(`expected: "%s"`, tc.result2), "\n", "\\n", -1)
 			t.Errorf("\n%s\n%s", r, e)
@@ -167,12 +164,12 @@ func TestExecCommandStdin(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		si.execCommand(ctx, tc.cmd, []byte(tc.stdin))
-		if !(bytes.Equal(si.data, []byte(tc.result))) {
+		if !bytes.Equal(si.data, []byte(tc.result)) {
 			r := strings.Replace(fmt.Sprintf(`result:   "%s"`, string(si.data)), "\n", "\\n", -1)
 			e := strings.Replace(fmt.Sprintf(`expected: "%s"`, tc.result), "\n", "\\n", -1)
 			t.Errorf("\n%s\n%s", r, e)
 		}
-		if !(si.GetText(true) == tc.result2) {
+		if si.GetText(true) != tc.result2 {
 			r := strings.Replace(fmt.Sprintf(`result:   "%s"`, si.GetText(true)), "\n", "\\n", -1)
 			e := strings.Replace(fmt.Sprintf(`expected: "%s"`, tc.result2), "\n", "\\n", -1)
 			t.Errorf("\n%s\n%s", r, e)
@@ -201,7 +198,7 @@ func TestExecCommandStdout(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		so.execCommand(ctx, tc.cmd, []byte(tc.stdin))
-		if !(so.GetText(true) == tc.result) {
+		if so.GetText(true) != tc.result {
 			r := strings.Replace(fmt.Sprintf(`result:   "%s"`, so.GetText(true)), "\n", "\\n", -1)
 			e := strings.Replace(fmt.Sprintf(`expected: "%s"`, tc.result), "\n", "\\n", -1)
 			t.Errorf("\n%s\n%s", r, e)
