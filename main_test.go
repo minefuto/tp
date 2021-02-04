@@ -5,11 +5,58 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"reflect"
 	"strings"
 	"testing"
 
 	"golang.org/x/text/transform"
 )
+
+func TestGetBlockList(t *testing.T) {
+	var input string
+	env = func() string {
+		return input
+	}
+
+	cases := []struct {
+		input  string
+		result []string
+	}{
+		{input: "", result: nil},
+		{input: "a", result: []string{"a"}},
+		{input: "a:b", result: []string{"a", "b"}},
+	}
+
+	for _, tc := range cases {
+		input = tc.input
+		result := getBlockList()
+		if !(reflect.DeepEqual(result, tc.result)) {
+			r := `result:   "%s"`
+			e := `expected: "%s"`
+			t.Errorf("\n%s\n%s", r, e)
+		}
+	}
+}
+
+func TestIsBlock(t *testing.T) {
+	cases := []struct {
+		input  string
+		result bool
+	}{
+		{input: "rm", result: true},
+		{input: "rm aaa", result: true},
+		{input: "rma aaa", result: false},
+	}
+
+	for _, tc := range cases {
+		if isBlock(tc.input) != tc.result {
+			r := `result:   "%s"`
+			e := `expected: "%s"`
+			t.Errorf("\n%s\n%s", r, e)
+		}
+	}
+
+}
 
 func TestSpinner(t *testing.T) {
 	cases := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
@@ -101,6 +148,7 @@ func TestSetData(t *testing.T) {
 
 func TestExecCommandStdin(t *testing.T) {
 	shell = "sh"
+	blockCommands = nil
 	getTerminalHeight = func() int {
 		return 6
 	}
@@ -134,6 +182,7 @@ func TestExecCommandStdin(t *testing.T) {
 
 func TestExecCommandStdout(t *testing.T) {
 	shell = "sh"
+	blockCommands = nil
 	getTerminalHeight = func() int {
 		return 6
 	}
