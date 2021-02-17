@@ -108,15 +108,6 @@ func (t *tui) setAction() {
 
 	t.cliPane.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
-		case tcell.KeyCtrlF:
-			return tcell.NewEventKey(tcell.KeyRight, 0, tcell.ModNone)
-
-		case tcell.KeyCtrlB:
-			return tcell.NewEventKey(tcell.KeyLeft, 0, tcell.ModNone)
-
-		case tcell.KeyCtrlD:
-			return tcell.NewEventKey(tcell.KeyDelete, 0, tcell.ModNone)
-
 		case tcell.KeyCtrlC:
 			if commandFlag {
 				fmt.Println(initCommand)
