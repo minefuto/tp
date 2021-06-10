@@ -73,11 +73,8 @@ export TP_BLOCK_COMMAND='mkdir:rmdir:rm:mv'
 Also, disable keystroke of redirection(`<`, `>`) in `tp` for the same reason.  
 
 ## Installation
-This steps will install to `$GOPATH/bin`.
 ```
-$ git clone https://github.com/minefuto/tp.git
-$ cd tp
-$ make install
+$ go install github.com/minefuto/tp@latest
 ```
 
 ## Keybindings

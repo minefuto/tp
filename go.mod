@@ -1,6 +1,6 @@
 module github.com/minefuto/tp
 
-go 1.15
+go 1.16
 
 require (
 	github.com/cornfeedhobo/pflag v1.1.0

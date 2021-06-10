@@ -13,8 +13,7 @@ builds:
     binary: tp
     ldflags:
       - -s -w
-      - -X main.version={{.Version}}
-      - -X main.commit={{.ShortCommit}}
+      - -X main.version={{.Tag}}
     env:
       - CGO_ENABLED=0
     goos:
