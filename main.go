@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"time"
@@ -23,7 +24,6 @@ import (
 var (
 	name    = "tp"
 	version = ""
-	commit  = ""
 )
 
 var (
@@ -510,7 +510,15 @@ func main() {
 	}
 
 	if versionFlag {
-		fmt.Printf("%s version %s-%s\n", name, version, commit)
+		if version == "" {
+			info, ok := debug.ReadBuildInfo()
+			if !ok {
+				version = "(devel)"
+			} else {
+				version = info.Main.Version
+			}
+		}
+		fmt.Printf("%s version %s\n", name, version)
 		os.Exit(0)
 	}
 

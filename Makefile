@@ -1,7 +1,6 @@
 NAME := tp
 VERSION := $(shell git describe --tags --abbrev=0)
-COMMIT := $(shell git rev-parse --short HEAD)
-LDFLAGS := -s -w -X 'main.version=$(VERSION)' -X 'main.commit=$(COMMIT)'
+LDFLAGS := -s -w -X 'main.version=$(VERSION)'
 
 all: build
 
