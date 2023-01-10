@@ -1,6 +1,6 @@
 # Transparent Pipe(tp)
 [![Go Report Card](https://goreportcard.com/badge/github.com/minefuto/tp)](https://goreportcard.com/report/github.com/minefuto/tp)
-![GitHub Workflow Status](https://img.shields.io/github/workflow/status/minefuto/tp/build)
+[![release](https://github.com/minefuto/tp/actions/workflows/release.yml/badge.svg)](https://github.com/minefuto/tp/actions/workflows/release.yml)
 ![GitHub release (latest by date)](https://img.shields.io/github/v/release/minefuto/tp)
 ![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/minefuto/tp)
 ![GitHub](https://img.shields.io/github/license/minefuto/tp)
