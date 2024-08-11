@@ -6,27 +6,21 @@
 ![GitHub](https://img.shields.io/github/license/minefuto/tp)
 
 This project is inspired by [akavel/up](https://github.com/akavel/up).  
-`tp` is a terminal-based application for display the result of the command in real-time with each keystroke.  
+`tp` is a terminal-based application for display the result of the commands at every keystroke.  
+Make it easy to chain commands for such as string manipulation.
 
 It provides two displays.  
-1. the input passed from last pipeline.  
-2. the output of the command currently being typed.  
-
-You can consider the next commands while watching the input passed from pipeline.  
-These will help you create complex commands including pipelines for get the ideal output with try and error.  
-<br>
-Please type <kbd>Enter</kbd> when you completed to create command in `tp`.  
-Then, `tp` returns the full result of the command as stdout/stderr.  
+1. stdout from last pipe.  
+2. live preview of the command result.  
 
 <img src="https://github.com/minefuto/tp/blob/main/gif/tp.gif">
 
-Also, `tp` can collaborate with the shell.  
-By typing a shortcut key, you can start `tp` by capturing the command being typed into shell.  
-And the command being typed into `tp` return to shell when type <kbd>Enter</kbd>.  
+## shell integration
+It can be synchronized shell's linebuffer and `tp`'s inputfield.  
 
 <img src="https://github.com/minefuto/tp/blob/main/gif/tp-shell.gif">
 
-If you want to collaborate with the shell, please add the following to shell's config file.  
+Please add the below config if you want to shell integration.  
 `<key>`: Specify any shortcut key.  
 
 Bash
@@ -43,7 +37,7 @@ function transparent-pipe() {
   BUFFER="$(tp -c "${BUFFER}")"
   CURSOR=$#BUFFER
 }
-zle -N transparent-pipeline
+zle -N transparent-pipe
 bindkey "<key>" transparent-pipe
 ```
 Fish
@@ -57,20 +51,14 @@ function fish_user_key_bindings
   bind "<key>" transparent-pipe
 end
 ```
-<br>
 
-**Warning!!!**  
-`tp` executes the command being typed with each keystroke. There is possibility to execute dangerous commands.  
-So, create/delete operations(such as `mkdir`, `rm`) should not be typed because you might execute a careless command.  
-`tp` is not designed for such operations.  
+## Limitation
+`tp` executes the command at every keystroke. There is possibility to execute dangerous commands such as `rm`.  
+So, `tp` is only supported specific string manipulation commands. Any other commands will be executed when you pressed `|`, not every keystroke.  
+Also, `tp` is not supported redirections(`<`, `>`).  
 
-But I'm afraid of typo.  
-`tp` provides a feature of prevent execution a specific commands.  
-Please create block command list in `$TP_BLOCK_COMMAND` with `:` as delimiter. For example,  
-```
-export TP_BLOCK_COMMAND='mkdir:rmdir:rm:mv'
-```
-Also, disable keystroke of redirection(`<`, `>`) in `tp` for the same reason.  
+supported commands:  
+`awk`,`cut`,`egrep`,`grep`,`head`,`jq`,`nl`,`sed`,`sort`,`tail`,`tr`,`uniq`,`vgrep`,`wc`,`yq`  
 
 ## Installation
 ```
@@ -96,10 +84,10 @@ $ go install github.com/minefuto/tp@latest
 ```
 > tp -h
 Usage of tp:
-  -c, --command        Return commandline text (for collaborate with the shell)
+  -c, --command        Return commandline text
   -h, --help           Show help
       --horizontal     Split the view horizontally
-  -s, --shell string   Specify the shell to use (default "$SHELL")
+  -s, --shell string   Select a shell to use (default "$SHELL")
   -v, --version        Show version
 ```
 
