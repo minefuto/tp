@@ -500,7 +500,7 @@ func main() {
 	flag.BoolVar(&horizontalFlag, "horizontal", false, "Split the view horizontally")
 	flag.BoolVarP(&versionFlag, "version", "v", false, "Show version")
 	flag.BoolVarP(&commandFlag, "command", "c", false, "Return commandline text")
-	flag.StringVarP(&shell, "shell", "s", os.Getenv("SHELL"), "Specify the shell to use")
+	flag.StringVarP(&shell, "shell", "s", os.Getenv("SHELL"), "Select a shell to use")
 	flag.Parse()
 
 	if helpFlag {
@@ -523,13 +523,13 @@ func main() {
 	}
 
 	if os.Getenv("SHELL") == "" {
-		fmt.Fprint(os.Stderr, "$SHELL not found, please specify the shell by '-s' option")
+		fmt.Fprint(os.Stderr, "$SHELL not found, please select a shell by '-s' option")
 		os.Exit(1)
 	}
 
 	_, err := exec.LookPath(shell)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "executable file not found: '%s'", shell)
+		fmt.Fprintf(os.Stderr, "%s not found", shell)
 		os.Exit(1)
 	}
 
