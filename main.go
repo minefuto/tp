@@ -34,12 +34,8 @@ var (
 	horizontalFlag bool
 	versionFlag    bool
 	stdinBytes     []byte
-	blockCommands  = getBlockList()
+	allowCommands  = [...]string{"awk", "cut", "egrep", "grep", "head", "jq", "nl", "sed", "sort", "tail", "tr", "uniq", "vgrep", "wc", "yq"}
 )
-
-var env = func() string {
-	return os.Getenv("TP_BLOCK_COMMAND")
-}
 
 var getTerminalHeight = func() int {
 	_, height, _ := terminal.GetSize(int(os.Stderr.Fd()))
@@ -126,11 +122,6 @@ func (t *tui) setAction() {
 				return nil
 			}
 
-			if isBlock(_text) {
-				fmt.Fprintf(os.Stderr, "This command is blocked")
-				return nil
-			}
-
 			cmd := exec.Command(shell, "-c", _text)
 			cmd.Stdin = bytes.NewReader(stdinBytes)
 			cmd.Stdout = os.Stdout
@@ -200,12 +191,12 @@ func (t *tui) updateStdinView() {
 			select {
 			case <-stdinCtx.Done():
 				t.QueueUpdateDraw(func() {
-					t.stdoutPane.SetTitle(t.stdoutPane.name)
+					t.stdinPane.SetTitle(t.stdinPane.name)
 				})
 				return
 			case <-time.After(100 * time.Millisecond):
 				t.QueueUpdateDraw(func() {
-					t.stdoutPane.SetTitle(t.stdoutPane.name + s())
+					t.stdinPane.SetTitle(t.stdinPane.name + s())
 				})
 			}
 		}
@@ -221,7 +212,16 @@ func (t *tui) updateStdoutView(text string) {
 			t.cliPane.wg.Wait()
 		})
 		t.stdinPane.syncUpdate(func() {
-			t.stdoutPane.execCommand(stdoutCtx, text, t.stdinPane.data)
+			t.QueueUpdateDraw(func() {
+				if isBlock(text) {
+					t.stdoutPane.SetTitle("no preview")
+				} else {
+					t.stdoutPane.SetTitle("stdout/stderr")
+				}
+			})
+			if !isBlock(text) {
+				t.stdoutPane.execCommand(stdoutCtx, text, t.stdinPane.data)
+			}
 		})
 	}()
 }
@@ -365,11 +365,6 @@ func (si *stdinViewPane) execCommand(ctx context.Context, text string, inputByte
 	w := transform.NewWriter(tview.ANSIWriter(si), tt)
 	mw := io.MultiWriter(w, _data)
 
-	if isBlock(text) {
-		fmt.Fprint(mw, "This command is blocked")
-		return
-	}
-
 	cmd := exec.CommandContext(ctx, shell, "-c", text)
 
 	cmd.Stdin = bytes.NewReader(inputBytes)
@@ -397,11 +392,6 @@ func (so *stdoutViewPane) execCommand(ctx context.Context, text string, inputByt
 	tt := newTextLineTransformer()
 	w := transform.NewWriter(tview.ANSIWriter(so), tt)
 
-	if isBlock(text) {
-		fmt.Fprint(w, "This command is blocked")
-		return
-	}
-
 	cmd := exec.CommandContext(ctx, shell, "-c", text)
 
 	cmd.Stdin = bytes.NewReader(inputBytes)
@@ -411,29 +401,17 @@ func (so *stdoutViewPane) execCommand(ctx context.Context, text string, inputByt
 	cmd.Run()
 }
 
-func getBlockList() []string {
-	_env := env()
-	if _env == "" {
-		return nil
-	}
-	return strings.Split(_env, ":")
-}
-
 func isBlock(text string) bool {
-	if blockCommands == nil {
-		return false
-	}
-
-	for _, cmd := range blockCommands {
+	for _, cmd := range allowCommands {
 		_text := strings.TrimLeft(text, " ")
 		if _text == cmd {
-			return true
+			return false
 		}
 		if strings.HasPrefix(_text, cmd+" ") {
-			return true
+			return false
 		}
 	}
-	return false
+	return true
 }
 
 type textLineTransformer struct {

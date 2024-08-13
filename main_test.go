@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"reflect"
 	"strconv"
 	"strings"
 	"testing"
@@ -13,39 +12,14 @@ import (
 	"golang.org/x/text/transform"
 )
 
-func TestGetBlockList(t *testing.T) {
-	var input string
-	env = func() string {
-		return input
-	}
-
-	cases := []struct {
-		input  string
-		result []string
-	}{
-		{input: "", result: nil},
-		{input: "a", result: []string{"a"}},
-		{input: "a:b", result: []string{"a", "b"}},
-	}
-	for _, tc := range cases {
-		input = tc.input
-		result := getBlockList()
-		if !reflect.DeepEqual(result, tc.result) {
-			t.Errorf("result: %s, expected: %s", result, tc.result)
-		}
-	}
-}
-
 func TestIsBlock(t *testing.T) {
-	blockCommands = []string{"rm"}
-
 	cases := []struct {
 		input  string
 		result bool
 	}{
-		{input: "rm", result: true},
-		{input: "rm aaa", result: true},
-		{input: "rma aaa", result: false},
+		{input: "grep", result: false},
+		{input: "grep aaa", result: false},
+		{input: "grepa aaa", result: true},
 	}
 	for _, tc := range cases {
 		result := isBlock(tc.input)
@@ -145,7 +119,6 @@ func TestSetData(t *testing.T) {
 
 func TestExecCommandStdin(t *testing.T) {
 	shell = "sh"
-	blockCommands = nil
 	getTerminalHeight = func() int {
 		return 6
 	}
@@ -179,7 +152,6 @@ func TestExecCommandStdin(t *testing.T) {
 
 func TestExecCommandStdout(t *testing.T) {
 	shell = "sh"
-	blockCommands = nil
 	getTerminalHeight = func() int {
 		return 6
 	}
