@@ -20,36 +20,15 @@ It can be synchronized shell's linebuffer and `tp`'s inputfield.
 
 <img src="https://github.com/minefuto/tp/blob/main/gif/tp-shell.gif">
 
-Please add the below config if you want to shell integration.  
-`<key>`: Specify any shortcut key.  
-
-Bash
+The below config is the `zsh` integration.
+keymappings: `ctrl + |`
 ```
 function transparent-pipe() {
-  READLINE_LINE=$(tp -c "${READLINE_LINE}")
-  READLINE_POINT=${#READLINE_LINE}
-}
-bind -x '"<key>": transparent-pipe'
-```
-Zsh
-```
-function transparent-pipe() {
-  BUFFER="$(tp -c "${BUFFER}")"
+  BUFFER="$(tp -c "${BUFFER}|")"
   CURSOR=$#BUFFER
 }
 zle -N transparent-pipe
-bindkey "<key>" transparent-pipe
-```
-Fish
-```
-function transparent-pipe
-  commandline | read -l buffer
-  commandline -r (tp -c "$buffer")
-  commandline -f repaint
-end
-function fish_user_key_bindings
-  bind "<key>" transparent-pipe
-end
+bindkey "^|" transparent-pipe
 ```
 
 ## Limitation
