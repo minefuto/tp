@@ -365,15 +365,22 @@ func (si *stdinViewPane) execCommand(ctx context.Context, text string, inputByte
 	w := transform.NewWriter(tview.ANSIWriter(si), tt)
 	mw := io.MultiWriter(w, _data)
 
+	si.syncUpdate(func() {
+		si.data = []byte("")
+	})
 	cmd := exec.CommandContext(ctx, shell, "-c", text)
 
 	cmd.Stdin = bytes.NewReader(inputBytes)
 	cmd.Stdout = mw
-
 	cmd.Run()
-	si.syncUpdate(func() {
-		si.data = _data.Bytes()
-	})
+
+	select {
+	case <-ctx.Done():
+	default:
+		si.syncUpdate(func() {
+			si.data = _data.Bytes()
+		})
+	}
 }
 
 type stdoutViewPane struct {
