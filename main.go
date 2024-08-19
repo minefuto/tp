@@ -173,11 +173,7 @@ func (t *tui) updateStdinView() {
 	stdinCtx, stdinCancel := context.WithCancel(t.stdinPane.ctx)
 
 	p := t.cliPane.prompt
-	t.cliPane.syncUpdate(func() {
-		t.cliPane.wg.Add(1)
-	})
 	go func() {
-		defer t.cliPane.wg.Done()
 		defer stdinCancel()
 		if p == "" {
 			t.stdinPane.setData(stdinBytes)
@@ -187,9 +183,15 @@ func (t *tui) updateStdinView() {
 	}()
 	go func() {
 		s := spinner()
+		t.stdinPane.syncUpdate(func() {
+			t.stdinPane.isLoading = true
+		})
 		for {
 			select {
 			case <-stdinCtx.Done():
+				t.stdinPane.syncUpdate(func() {
+					t.stdinPane.isLoading = false
+				})
 				t.QueueUpdateDraw(func() {
 					t.stdinPane.SetTitle(t.stdinPane.name)
 				})
@@ -208,18 +210,15 @@ func (t *tui) updateStdoutView(text string) {
 
 	go func() {
 		defer stdoutCancel()
-		t.cliPane.syncUpdate(func() {
-			t.cliPane.wg.Wait()
-		})
 		t.stdinPane.syncUpdate(func() {
 			t.QueueUpdateDraw(func() {
-				if isBlock(text) {
+				if isBlock(text) || t.stdinPane.isLoading {
 					t.stdoutPane.SetTitle("no preview")
 				} else {
 					t.stdoutPane.SetTitle("stdout/stderr")
 				}
 			})
-			if !isBlock(text) {
+			if !isBlock(text) && !t.stdinPane.isLoading {
 				t.stdoutPane.execCommand(stdoutCtx, text, t.stdinPane.data)
 			}
 		})
@@ -241,7 +240,6 @@ type cliPane struct {
 	symbol   string
 	prompt   string
 	trimText string
-	wg       sync.WaitGroup
 	mu       sync.Mutex
 }
 
@@ -336,14 +334,16 @@ func (v *viewPane) reset() {
 
 type stdinViewPane struct {
 	*viewPane
-	data []byte
+	data      []byte
+	isLoading bool
 }
 
 func newStdinViewPane() *stdinViewPane {
 	v := newViewPane("stdin")
 	si := &stdinViewPane{
-		viewPane: v,
-		data:     []byte(""),
+		viewPane:  v,
+		data:      []byte(""),
+		isLoading: false,
 	}
 	return si
 }
