@@ -1,6 +1,6 @@
 # Transparent Pipe(tp)
 [![Go Report Card](https://goreportcard.com/badge/github.com/minefuto/tp)](https://goreportcard.com/report/github.com/minefuto/tp)
-[![release](https://github.com/minefuto/tp/actions/workflows/release.yml/badge.svg)](https://github.com/minefuto/tp/actions/workflows/release.yml)
+[![build](https://github.com/minefuto/tp/actions/workflows/build.yml/badge.svg)](https://github.com/minefuto/tp/actions/workflows/build.yml)
 ![GitHub release (latest by date)](https://img.shields.io/github/v/release/minefuto/tp)
 ![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/minefuto/tp)
 ![GitHub](https://img.shields.io/github/license/minefuto/tp)
@@ -15,12 +15,9 @@ It provides two displays.
 
 <img src="https://github.com/minefuto/tp/blob/main/gif/tp.gif">
 
-## shell integration
+## Shell integration
 It can be synchronized shell's linebuffer and `tp`'s inputfield.  
-
-<img src="https://github.com/minefuto/tp/blob/main/gif/tp-shell.gif">
-
-The below config is the `zsh` integration.
+The below config is the `zsh` integration.  
 keymappings: `ctrl + |`
 ```
 function transparent-pipe() {
