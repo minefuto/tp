@@ -27,14 +27,13 @@ var (
 )
 
 var (
-	shell          string
-	initCommand    string
-	commandFlag    bool
-	helpFlag       bool
-	horizontalFlag bool
-	versionFlag    bool
-	stdinBytes     []byte
-	allowCommands  = [...]string{"awk", "cut", "egrep", "grep", "head", "jq", "nl", "sed", "sort", "tail", "tr", "uniq", "vgrep", "wc", "yq"}
+	shell         string
+	initCommand   string
+	commandFlag   bool
+	helpFlag      bool
+	versionFlag   bool
+	stdinBytes    []byte
+	allowCommands = [...]string{"awk", "cut", "egrep", "grep", "head", "jq", "nl", "sed", "sort", "tail", "tr", "uniq", "vgrep", "wc", "yq"}
 )
 
 var getTerminalHeight = func() int {
@@ -55,21 +54,14 @@ func newTui() *tui {
 	stdoutPane := newStdoutViewPane()
 
 	flex := tview.NewFlex()
-	if horizontalFlag {
-		flex.SetDirection(tview.FlexRow).
-			AddItem(cliPane, 1, 0, false).
-			AddItem(stdinPane, 0, 1, false).
-			AddItem(stdoutPane, 0, 1, false)
-	} else {
-		viewPanes := tview.NewFlex()
-		viewPanes.SetDirection(tview.FlexColumn).
-			AddItem(stdinPane, 0, 1, false).
-			AddItem(stdoutPane, 0, 1, false)
+	viewPanes := tview.NewFlex()
+	viewPanes.SetDirection(tview.FlexColumn).
+		AddItem(stdinPane, 0, 1, false).
+		AddItem(stdoutPane, 0, 1, false)
 
-		flex.SetDirection(tview.FlexRow).
-			AddItem(cliPane, 1, 0, false).
-			AddItem(viewPanes, 0, 1, false)
-	}
+	flex.SetDirection(tview.FlexRow).
+		AddItem(cliPane, 1, 0, false).
+		AddItem(viewPanes, 0, 1, false)
 
 	t := &tui{
 		Application: tview.NewApplication(),
@@ -482,7 +474,6 @@ func (tt *textLineTransformer) Transform(dst, src []byte, atEOF bool) (nDst, nSr
 
 func main() {
 	flag.BoolVarP(&helpFlag, "help", "h", false, "Show help")
-	flag.BoolVar(&horizontalFlag, "horizontal", false, "Split the view horizontally")
 	flag.BoolVarP(&versionFlag, "version", "v", false, "Show version")
 	flag.BoolVarP(&commandFlag, "command", "c", false, "Return commandline text")
 	flag.StringVarP(&shell, "shell", "s", os.Getenv("SHELL"), "Select a shell to use")

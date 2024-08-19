@@ -62,7 +62,6 @@ $ go install github.com/minefuto/tp@latest
 Usage of tp:
   -c, --command        Return commandline text
   -h, --help           Show help
-      --horizontal     Split the view horizontally
   -s, --shell string   Select a shell to use (default "$SHELL")
   -v, --version        Show version
 ```
