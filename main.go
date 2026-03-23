@@ -33,7 +33,6 @@ var (
 	helpFlag      bool
 	versionFlag   bool
 	stdinBytes    []byte
-	allowCommands = [...]string{"awk", "cut", "egrep", "grep", "head", "jq", "nl", "sed", "sort", "tail", "tr", "uniq", "vgrep", "wc", "yq"}
 )
 
 var getTerminalHeight = func() int {
@@ -114,7 +113,7 @@ func (t *tui) setAction() {
 				return nil
 			}
 
-			cmd := exec.Command(shell, "-c", _text)
+			cmd := sandboxedCommand(shell, _text)
 			cmd.Stdin = bytes.NewReader(stdinBytes)
 			cmd.Stdout = os.Stdout
 			cmd.Stderr = os.Stderr
@@ -204,13 +203,13 @@ func (t *tui) updateStdoutView(text string) {
 		defer stdoutCancel()
 		t.stdinPane.syncUpdate(func() {
 			t.QueueUpdateDraw(func() {
-				if isBlock(text) || t.stdinPane.isLoading {
+				if t.stdinPane.isLoading {
 					t.stdoutPane.SetTitle("no preview")
 				} else {
 					t.stdoutPane.SetTitle("stdout/stderr")
 				}
 			})
-			if !isBlock(text) && !t.stdinPane.isLoading {
+			if !t.stdinPane.isLoading {
 				t.stdoutPane.execCommand(stdoutCtx, text, t.stdinPane.data)
 			}
 		})
@@ -360,7 +359,7 @@ func (si *stdinViewPane) execCommand(ctx context.Context, text string, inputByte
 	si.syncUpdate(func() {
 		si.data = []byte("")
 	})
-	cmd := exec.CommandContext(ctx, shell, "-c", text)
+	cmd := sandboxedCommandContext(ctx, shell, text)
 
 	cmd.Stdin = bytes.NewReader(inputBytes)
 	cmd.Stdout = mw
@@ -391,26 +390,13 @@ func (so *stdoutViewPane) execCommand(ctx context.Context, text string, inputByt
 	tt := newTextLineTransformer()
 	w := transform.NewWriter(tview.ANSIWriter(so), tt)
 
-	cmd := exec.CommandContext(ctx, shell, "-c", text)
+	cmd := sandboxedCommandContext(ctx, shell, text)
 
 	cmd.Stdin = bytes.NewReader(inputBytes)
 	cmd.Stdout = w
 	cmd.Stderr = w
 
 	cmd.Run()
-}
-
-func isBlock(text string) bool {
-	for _, cmd := range allowCommands {
-		_text := strings.TrimLeft(text, " ")
-		if _text == cmd {
-			return false
-		}
-		if strings.HasPrefix(_text, cmd+" ") {
-			return false
-		}
-	}
-	return true
 }
 
 type textLineTransformer struct {
@@ -473,6 +459,8 @@ func (tt *textLineTransformer) Transform(dst, src []byte, atEOF bool) (nDst, nSr
 }
 
 func main() {
+	runInSandbox() // Must be first: on Linux, may execve and never return.
+
 	flag.BoolVarP(&helpFlag, "help", "h", false, "Show help")
 	flag.BoolVarP(&versionFlag, "version", "v", false, "Show version")
 	flag.BoolVarP(&commandFlag, "command", "c", false, "Return commandline text")
@@ -506,6 +494,11 @@ func main() {
 	_, err := exec.LookPath(shell)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s not found", shell)
+		os.Exit(1)
+	}
+
+	if err := checkSandbox(); err != nil {
+		fmt.Fprintf(os.Stderr, "sandbox is not available: %v\n", err)
 		os.Exit(1)
 	}
 

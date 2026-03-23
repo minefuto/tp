@@ -5,29 +5,11 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"strconv"
 	"strings"
 	"testing"
 
 	"golang.org/x/text/transform"
 )
-
-func TestIsBlock(t *testing.T) {
-	cases := []struct {
-		input  string
-		result bool
-	}{
-		{input: "grep", result: false},
-		{input: "grep aaa", result: false},
-		{input: "grepa aaa", result: true},
-	}
-	for _, tc := range cases {
-		result := isBlock(tc.input)
-		if result != tc.result {
-			t.Errorf("result: %s, expected: %s", strconv.FormatBool(result), strconv.FormatBool(tc.result))
-		}
-	}
-}
 
 func TestSpinner(t *testing.T) {
 	cases := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
