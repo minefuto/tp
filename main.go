@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"runtime/debug"
@@ -17,26 +16,30 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/mattn/go-isatty"
 	"github.com/rivo/tview"
-	"golang.org/x/crypto/ssh/terminal"
+	"golang.org/x/term"
 	"golang.org/x/text/transform"
 )
 
-var (
-	name    = "tp"
-	version = ""
+const (
+	name             = "tp"
+	maxInputLength   = 200
+	transformBufSize = 4096
+	spinnerInterval  = 100 * time.Millisecond
 )
 
+var version = ""
+
 var (
-	shell         string
-	initCommand   string
-	commandFlag   bool
-	helpFlag      bool
-	versionFlag   bool
-	stdinBytes    []byte
+	shell       string
+	initCommand string
+	commandFlag bool
+	helpFlag    bool
+	versionFlag bool
+	stdinBytes  []byte
 )
 
 var getTerminalHeight = func() int {
-	_, height, _ := terminal.GetSize(int(os.Stderr.Fd()))
+	_, height, _ := term.GetSize(int(os.Stderr.Fd()))
 	return height
 }
 
@@ -139,10 +142,6 @@ func (t *tui) setAction() {
 				t.stdinPane.reset()
 				t.updateStdinView()
 				return nil
-			case '>':
-				return nil
-			case '<':
-				return nil
 			}
 		}
 		return event
@@ -187,7 +186,7 @@ func (t *tui) updateStdinView() {
 					t.stdinPane.SetTitle(t.stdinPane.name)
 				})
 				return
-			case <-time.After(100 * time.Millisecond):
+			case <-time.After(spinnerInterval):
 				t.QueueUpdateDraw(func() {
 					t.stdinPane.SetTitle(t.stdinPane.name + s())
 				})
@@ -236,7 +235,7 @@ type cliPane struct {
 
 func newCliPane() *cliPane {
 	inputField := tview.NewInputField()
-	inputField.SetAcceptanceFunc(tview.InputFieldMaxLength(200)).
+	inputField.SetAcceptanceFunc(tview.InputFieldMaxLength(maxInputLength)).
 		SetFieldWidth(0)
 
 	symbol := "| "
@@ -430,9 +429,9 @@ func (tt *textLineTransformer) Transform(dst, src []byte, atEOF bool) (nDst, nSr
 		copy(_src[len(tt.temp):], src)
 	}
 
-	if len(_src) > 4096 {
-		tt.temp = make([]byte, len(_src[4096:]))
-		copy(tt.temp, _src[4096:])
+	if len(_src) > transformBufSize {
+		tt.temp = make([]byte, len(_src[transformBufSize:]))
+		copy(tt.temp, _src[transformBufSize:])
 		err = transform.ErrShortDst
 	}
 
@@ -445,7 +444,7 @@ func (tt *textLineTransformer) Transform(dst, src []byte, atEOF bool) (nDst, nSr
 		}
 		b = b + i + 1
 
-		if b >= 4096 {
+		if b >= transformBufSize {
 			nDst = copy(dst, _src)
 			return
 		}
@@ -505,7 +504,7 @@ func main() {
 	initCommand = flag.Arg(0)
 
 	if !isatty.IsTerminal(os.Stdin.Fd()) {
-		stdinBytes, _ = ioutil.ReadAll(os.Stdin)
+		stdinBytes, _ = io.ReadAll(os.Stdin)
 	}
 
 	t := newTui()
