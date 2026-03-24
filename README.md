@@ -16,6 +16,17 @@ It provides two displays:
 <img src="https://github.com/minefuto/tp/blob/main/gif/tp.gif">
 
 ## Installation
+**Homebrew (macOS / Linux):**
+```sh
+brew install minefuto/tap/tp
+```
+
+**AUR (Arch Linux):**
+```sh
+yay -S tp-bin
+```
+
+**Go:**
 ```sh
 go install github.com/minefuto/tp@latest
 ```

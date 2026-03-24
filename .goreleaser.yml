@@ -5,14 +5,11 @@ release:
   github:
     owner: minefuto
     name: tp
-env:
-  - GO111MODULE=on
 before:
   hooks:
     - go mod tidy
 builds:
-  - main: .
-    binary: tp
+  - binary: tp
     ldflags:
       - -s -w
       - -X main.version={{.Tag}}
@@ -23,13 +20,27 @@ builds:
       - darwin
     goarch:
       - amd64
+      - arm64
 changelog:
   disable: true
 archives:
-  - name_template: >-
-      {{- .ProjectName }}_
-      {{- title .Os }}_
-      {{- if eq .Arch "amd64" }}x86_64
-      {{- else if eq .Arch "386" }}i386
-      {{- else }}{{ .Arch }}{{ end }}
-      {{- if .Arm }}v{{ .Arm }}{{ end -}}
+  - name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ with .Arm }}v{{ . }}{{ end }}'
+aurs:
+  - name: tp-bin
+    homepage: "https://github.com/minefuto/tp"
+    description: "A terminal-based application that displays the result of commands at every keystroke."
+    license: MIT
+    private_key: "{{ .Env.AUR_SSH_PRIVATE_KEY }}"
+    git_url: "ssh://aur@aur.archlinux.org/tp-bin.git"
+    provides:
+      - tp
+    conflicts:
+      - tp
+brews:
+  - repository:
+      owner: minefuto
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    directory: Formula
+    homepage: "https://github.com/minefuto/tp"
+    description: "A terminal-based application that displays the result of commands at every keystroke."
