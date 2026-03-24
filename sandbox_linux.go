@@ -11,7 +11,7 @@ import (
 	"syscall"
 
 	"github.com/landlock-lsm/go-landlock/landlock"
-	"golang.org/x/sys/unix"
+	llsyscall "github.com/landlock-lsm/go-landlock/landlock/syscall"
 )
 
 const sandboxEnvVar = "TP_SANDBOX_EXEC"
@@ -21,7 +21,7 @@ var selfExe string // set by checkSandbox()
 // checkSandbox verifies that Landlock V3+ is supported by the running kernel
 // and that the tp executable path is resolvable for self-re-execution.
 func checkSandbox() error {
-	abi, err := unix.LandlockCreateRuleset(nil, 0, unix.LANDLOCK_CREATE_RULESET_VERSION)
+	abi, err := llsyscall.LandlockGetABIVersion()
 	if err != nil {
 		return fmt.Errorf("Landlock is not supported by this kernel: %w", err)
 	}
@@ -81,12 +81,18 @@ func filteredEnv() []string {
 }
 
 func sandboxedCommand(shell, text string) *exec.Cmd {
+	if selfExe == "" {
+		return exec.Command(shell, "-c", text)
+	}
 	cmd := exec.Command(selfExe, shell, "-c", text)
 	cmd.Env = append(filteredEnv(), sandboxEnvVar+"=1")
 	return cmd
 }
 
 func sandboxedCommandContext(ctx context.Context, shell, text string) *exec.Cmd {
+	if selfExe == "" {
+		return exec.CommandContext(ctx, shell, "-c", text)
+	}
 	cmd := exec.CommandContext(ctx, selfExe, shell, "-c", text)
 	cmd.Env = append(filteredEnv(), sandboxEnvVar+"=1")
 	return cmd
